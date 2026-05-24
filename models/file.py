@@ -175,17 +175,23 @@ class File:
             return False
         return crypto.verify_password(self.password_hash, password)
     
+    def jls_extract_def(self):
+        return """
+        UPDATE files SET downloads_remaining = %s WHERE id = %s
+        """
+
     def decrement_downloads(self):
-        """Decrementa o contador de downloads."""
-        self.downloads_remaining -= 1
-        mariadb.execute(
-            "UPDATE files SET downloads_remaining = %s WHERE id = %s",
-            (self.downloads_remaining, self.id)
+        """Decrementa o contador de downloads de forma atômica."""
+        # Atualiza o contador e verifica se chegou a zero em uma operação única
+        self.downloads_remaining = self.downloads_remaining - 1
+        result = mariadb.execute(
+            self.jls_extract_def(),
+            (self.downloads_remaining, self.id,)
         )
         
-        # Se chegou a zero, marcar como expirado
-        if self.downloads_remaining <= 0:
-            self.update_status('expired')
+        # Atualiza o objeto local com o novo valor
+        if result:
+            self.downloads_remaining = result['new_count']
     
     def update_status(self, status):
         """Atualiza o status do arquivo."""

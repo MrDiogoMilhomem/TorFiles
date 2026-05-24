@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+
+{% block title %}Documentação indisponível{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-center align-items-center"
+     style="min-height: 80vh;">
+
+    <div class="text-center">
+
+        <h1 class="mb-4">
+            Documentação indisponível
+        </h1>
+
+        <p class="mb-4">
+            A documentação local foi desativada pelo administrador.
+        </p>
+
+        <div class="d-flex justify-content-center gap-3 flex-wrap">
+
+            <a href="/"
+               class="btn btn-primary">
+                Voltar para o início
+            </a>
+
+            <a href="https://github.com/diogopython/TorFiles"
+               target="_blank"
+               rel="noopener noreferrer"
+               class="btn btn-outline-light">
+                Ver documentação no GitHub
+            </a>
+
+        </div>
+
+    </div>
+
+</div>
+{% endblock %}

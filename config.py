@@ -5,6 +5,9 @@ Gerencia variáveis de ambiente e configurações de segurança.
 import os
 import secrets
 from base64 import b64decode, b64encode
+from dotenv import load_dotenv
+
+load_dotenv()
 
 class Config:
     """Configuração principal do aplicativo."""
@@ -25,12 +28,11 @@ class Config:
     POSTGRES_URL = os.environ.get('POSTGRES_URL', '')
     
     # Chave de criptografia AES-256
-    # Se não fornecida, gera uma nova (não recomendado para produção)
+    # Deve ser fornecida via variável de ambiente em produção
     _encryption_key = os.environ.get('ENCRYPTION_KEY')
-    if _encryption_key:
-        ENCRYPTION_KEY = b64decode(_encryption_key)
-    else:
-        ENCRYPTION_KEY = secrets.token_bytes(32)
+    if not _encryption_key:
+        raise ValueError("ENCRYPTION_KEY environment variable must be set for production use")
+    ENCRYPTION_KEY = b64decode(_encryption_key)
     
     # Limites de upload
     MAX_CONTENT_LENGTH = 100 * 1024 * 1024  # 100MB

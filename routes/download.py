@@ -109,7 +109,6 @@ def access(code=None):
             flash('Erro ao processar download.', 'error')
             print("ERRO REAL:")
             traceback.print_exc()
-
             return render_template('download/access.html',
                                    file=file,
                                    time_remaining=format_timedelta(file.time_remaining()))

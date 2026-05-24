@@ -5,3 +5,4 @@ argon2-cffi
 cryptography
 markdown2
 python-dotenv
+gunicorn

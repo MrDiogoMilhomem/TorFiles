@@ -52,7 +52,8 @@ def register():
         try:
             user = User.create(username, password)
             
-            # Fazer login automaticamente
+            # Fazer login automaticamente com regeneração de sessão para prevenir fixação
+            session.clear()
             session['user_id'] = user.id
             session['username'] = user.username
             session.permanent = True
@@ -104,7 +105,8 @@ def login():
             flash('Username ou senha incorretos.', 'error')
             return render_template('auth/login.html', username=username)
         
-        # Criar sessão
+        # Criar sessão com regeneração de sessão para prevenir fixação
+        session.clear()
         session['user_id'] = user.id
         session['username'] = user.username
         session.permanent = True

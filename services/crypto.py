@@ -82,7 +82,8 @@ class CryptoService:
             return encrypted_data, False
     
     def decrypt_file(self, encrypted_data, password=None, has_password=False):
-        # 💥 NORMALIZAÇÃO CRÍTICA
+        # Normalização de tipos de entrada para compatibilidade com diferentes drivers de banco
+        # Alguns drivers podem retornar memoryview, bytearray ou string em vez de bytes
         if isinstance(encrypted_data, memoryview):
             encrypted_data = encrypted_data.tobytes()
         elif isinstance(encrypted_data, bytearray):

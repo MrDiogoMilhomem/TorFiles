@@ -68,7 +68,7 @@ class CleanupWorker:
             
         except Exception as e:
             # Log mínimo por privacidade
-            print(f"Cleanup error: {type(e).__name__}")
+            print("Cleanup error occurred")
     
     def _run(self):
         """Loop principal do worker."""

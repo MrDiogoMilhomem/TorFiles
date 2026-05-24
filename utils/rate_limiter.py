@@ -103,4 +103,5 @@ def get_rate_limit_key(request, action=None):
     
     if action:
         return f"{ip}:{action}"
+    print(f"IP: {ip}")
     return ip

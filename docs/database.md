@@ -13,6 +13,8 @@ O sistema utiliza dois bancos de dados:
 Armazena informacoes de usuarios.
 
 ```sql
+CREATE DATABASE torfiles;
+
 CREATE TABLE users (
     id INT AUTO_INCREMENT PRIMARY KEY,
     username VARCHAR(50) UNIQUE NOT NULL,
