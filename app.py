@@ -10,6 +10,15 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from flask import Flask, render_template, redirect, url_for, session
 from config import Config
+from dotenv import load_dotenv
+
+load_dotenv()
+
+#Variaveis do LocalDev
+LOCALDEV = os.environ.get("LOCALDEV", "false").lower() in ("True", "true", "1", "yes", "on")
+LOCALDEV_DEBUG = os.environ.get("LOCALDEV_DEBUG", "false").lower() in ("True", "true", "1", "yes", "on")
+LOCALDEV_HOST = os.environ.get("LOCALDEV_HOST")
+LOCALDEV_PORT = os.environ.get("LOCALDEV_PORT")
 
 # Criar aplicação Flask
 app = Flask(__name__)
@@ -95,6 +104,13 @@ with app.app_context():
     start_cleanup_worker()
 
 
-if __name__ == '__main__':
+if __name__ == '__main__' and LOCALDEV:
     # Para desenvolvimento local
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    print("-> Ambiente de desenvouvimento local ativo.")
+    app.run(
+        debug=LOCALDEV_DEBUG, 
+        host=LOCALDEV_HOST, 
+        port=LOCALDEV_PORT
+    )
+else: 
+    print("-> Ambiente de desenvouvimento local desativo.")
