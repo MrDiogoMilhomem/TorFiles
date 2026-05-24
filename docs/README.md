@@ -4,6 +4,9 @@
 
 TorFiles e um sistema web para upload e compartilhamento seguro de arquivos compactados. Desenvolvido com foco em privacidade, seguranca e anonimato.
 
+- **Images do projeto**
+- ![Screenshot ilustrativa do projeto](./screenshot.png)
+
 ## Principais Funcionalidades
 
 - **Criptografia AES-256**: Todos os arquivos sao criptografados antes de serem armazenados
