@@ -89,6 +89,129 @@ gunicorn -w <workers> -b 127.0.0.1:8000 app:app
 
 ---
 
+## Deploy com Docker
+
+O Docker empacota a aplicação e todas as suas dependências em um container isolado, eliminando a necessidade de configurar Python, libs do sistema ou o Gunicorn manualmente no servidor.
+
+### Requisitos
+
+- [Docker](https://docs.docker.com/get-docker/) 24+
+- [Docker Compose](https://docs.docker.com/compose/install/) v2+
+
+### Arquivos necessários
+
+Certifique-se de que os arquivos `Dockerfile`, `.dockerignore` e `docker-compose.yml` estão na raiz do projeto (ao lado de `app.py`).
+
+### 1. Gerar as Chaves e o .env basico com as chaves
+
+Antes de qualquer coisa, gere o .env com as chaves usando o comando:
+
+```python
+python3 GenBaseDockerEnv.py .env
+```
+
+### 2. Criar o arquivo .env
+
+Edite o arquivo `.env` gerado na raiz do projeto com as variáveis de ambiente, nele vai aparecer:
+
+```bash
+# Segurança
+SECRET_KEY=XXXXXXXXXXXXXX
+ENCRYPTION_KEY=XXXXXXXXXXXXXX
+
+# Senhas dos bancos (escolha senhas fortes)
+MARIADB_ROOT_PASSWORD=senha-root-forte
+MARIADB_PASSWORD=senha-torfiles-forte
+POSTGRES_PASSWORD=senha-torfiles-forte
+
+# Opcional
+DOCS_ENABLED=true
+```
+Coloque senhas **FORTES** para o mariadb e para o postgresql
+
+> As URLs dos bancos (`MARIADB_URL` e `POSTGRES_URL`) são montadas automaticamente pelo `docker-compose.yml` usando os serviços `mariadb` e `postgres` como hostname — não é necessário defini-las no `.env` ao usar o Compose.
+
+### 3. Build da imagem
+
+Constrói a imagem Docker da aplicação a partir do `Dockerfile`:
+
+```bash
+docker build -t torfiles:latest .
+```
+
+O build usa múltiplos estágios: o primeiro estágio compila as dependências Python, o segundo gera a imagem final enxuta sem ferramentas de compilação.
+
+Para forçar rebuild do zero (sem cache):
+
+```bash
+docker build --no-cache -t torfiles:latest .
+```
+
+### 4. Subir com Docker Compose
+
+O Compose sobe a aplicação junto com os bancos MariaDB e PostgreSQL, já configurados e conectados entre si:
+
+```bash
+docker compose up -d
+```
+
+A flag `-d` roda os containers em segundo plano. As tabelas dos bancos são criadas automaticamente na primeira execução.
+
+Para acompanhar os logs em tempo real:
+
+```bash
+docker compose logs -f
+```
+
+Para parar tudo:
+
+```bash
+docker compose down
+```
+
+> Os dados dos bancos ficam em volumes Docker (`mariadb_data` e `postgres_data`) e **persistem** entre reinicializações. Para apagar os dados junto com os containers, use `docker compose down -v`.
+
+### 5. Verificar se está rodando
+
+```bash
+docker compose ps
+```
+
+A aplicação estará disponível em `http://localhost:8000`.
+
+### Atualizar após mudanças no código
+
+Sempre que alterar o código, refaça o build e reinicie:
+
+```bash
+docker compose down
+docker build -t torfiles:latest .
+docker compose up -d
+```
+
+### Workers do Gunicorn no Docker
+
+O `Dockerfile` já define 2 workers por padrão. Para ajustar, sobrescreva o `CMD` no `docker-compose.yml`:
+
+```yaml
+services:
+  app:
+    command: >
+      gunicorn
+      --bind 0.0.0.0:8000
+      --workers 5
+      --threads 2
+      --timeout 120
+      --log-level info
+      --access-logfile -
+      --error-logfile -
+      app:app
+```
+
+Aplique a mesma regra `(2 × núcleos) + 1` descrita na seção de Workers abaixo.
+
+---
+
 ## Workers do Gunicorn
 
 Os `workers` são processos separados do Gunicorn que executam sua aplicação Flask.

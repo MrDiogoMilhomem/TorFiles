@@ -1,0 +1,67 @@
+# =============================================================================
+# TorFiles — docker-compose.yml (referência / desenvolvimento)
+# ⚠️  Não use as credenciais de exemplo em produção!
+# =============================================================================
+
+services:
+  app:
+    build: .
+    image: torfiles:latest
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      SECRET_KEY: ${SECRET_KEY}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+      MARIADB_URL: mysql://torfiles:${MARIADB_PASSWORD}@mariadb:3306/torfiles
+      POSTGRES_URL: postgresql://torfiles:${POSTGRES_PASSWORD}@postgres:5432/torfiles
+    depends_on:
+      mariadb:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    networks:
+      - torfiles_net
+
+  mariadb:
+    image: mariadb:11
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD}
+      MYSQL_DATABASE: torfiles
+      MYSQL_USER: torfiles
+      MYSQL_PASSWORD: ${MARIADB_PASSWORD}
+    volumes:
+      - mariadb_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - torfiles_net
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: torfiles
+      POSTGRES_USER: torfiles
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U torfiles"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - torfiles_net
+
+volumes:
+  mariadb_data:
+  postgres_data:
+
+networks:
+  torfiles_net:
+    driver: bridge

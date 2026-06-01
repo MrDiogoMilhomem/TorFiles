@@ -27,3 +27,7 @@ Thumbs.db
 
 # Banco local
 *.db
+
+# Testes
+/Tests
+Tests*
