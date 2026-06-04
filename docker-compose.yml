@@ -8,6 +8,7 @@ services:
     build: .
     image: torfiles:latest
     restart: unless-stopped
+    container_name: torfiles-web
     ports:
       - "8000:8000"
     environment:
@@ -26,6 +27,7 @@ services:
   mariadb:
     image: mariadb:11
     restart: unless-stopped
+    container_name: torfiles-mariadb
     environment:
       MYSQL_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD}
       MYSQL_DATABASE: torfiles
@@ -44,6 +46,7 @@ services:
   postgres:
     image: postgres:16-alpine
     restart: unless-stopped
+    container_name: torfiles-postgres
     environment:
       POSTGRES_DB: torfiles
       POSTGRES_USER: torfiles
