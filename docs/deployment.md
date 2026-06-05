@@ -5,39 +5,6 @@
 - Python 3.9+
 - MariaDB 10.5+
 - PostgreSQL 13+
-- Servidor com suporte a Python (Vercel, Heroku, VPS)
-
-## Variaveis de Ambiente
-
-```bash
-MARIADB_URL=mysql://user:password@host:3306/torfiles
-POSTGRES_URL=postgresql://user:password@host:5432/torfiles
-
-SECRET_KEY=chave-secreta-longa-e-aleatoria
-ENCRYPTION_KEY=chave-base64-32-bytes
-
-# habilitar a documentaçao do app
-DOCS_ENABLED=true
-
-# Configuraçoes do desemvolvimento local
-LOCALDEV=true
-LOCALDEV_DEBUG=true
-LOCALDEV_HOST='127.0.0.1'
-LOCALDEV_PORT=5000
-```
-
-### Gerando Chaves
-
-```python
-import secrets
-import base64
-
-# SECRET_KEY
-print(secrets.token_hex(32))
-
-# ENCRYPTION_KEY
-print(base64.b64encode(secrets.token_bytes(32)).decode())
-```
 
 ## Deploy
 
@@ -56,14 +23,19 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### 3. Configurar Variaveis
+### 3. Criar .env
+```bash
+python3 GenBaseEnv.py .env
+```
+
+### 4. Configurar Variaveis
 
 ```bash
 MARIADB_URL=mysql://user:password@host:3306/torfiles
 POSTGRES_URL=postgresql://user:password@host:5432/torfiles
 
-SECRET_KEY=chave-secreta-longa-e-aleatoria
-ENCRYPTION_KEY=chave-base64-32-bytes
+SECRET_KEY=XXXXXXXXXXXXXXXXXXXXXXXXX
+ENCRYPTION_KEY=XXXXXXXXXXXXXXXXXXXXXXXXX
 
 # habilitar a documentaçao do app
 DOCS_ENABLED=true
@@ -75,7 +47,7 @@ LOCALDEV_HOST='127.0.0.1'
 LOCALDEV_PORT=5000
 ```
 
-### 4. Executar
+### 5. Executar
 
 **Desenvolvimento:**
 ```bash
