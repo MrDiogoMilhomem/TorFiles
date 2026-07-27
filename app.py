@@ -1,7 +1,17 @@
+# Copyright (C) 2026 Diogo Milhomem
+#
+# Este programa é um software livre; você pode redistribuí-lo e/ou
+# modificá-lo sob os termos da GNU General Public License
+# versão 2, conforme publicada pela Free Software Foundation.
+#
+# Este programa é distribuído na esperança de que seja útil,
+# mas SEM QUALQUER GARANTIA.
+
 """
 Aplicação Flask principal.
 Sistema de compartilhamento de arquivos seguro.
 """
+
 import os
 import sys
 

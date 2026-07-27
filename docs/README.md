@@ -53,3 +53,9 @@ Tamanho maximo: 100MB
 - [Seguranca](./security.md) - Medidas de protecao
 - [Deployment](./deployment.md) - Como implantar
 - [Uso](./usage.md) - Guia de uso detalhado
+
+### License
+
+> Este projeto está licenciado sob a GNU License v2.0 (GPL-2.0). Consulte o arquivo LICENSE para obter detalhes.
+
+[![License: GPL v2](https://img.shields.io/badge/License-GPL_v2-blue.svg)](https://www.gnu.org/licenses/old-licenses/gpl-2.0.en.html)

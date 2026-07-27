@@ -20,7 +20,7 @@ decrypted = fernet.decrypt(encrypted)
 ### Derivacao de Chave
 
 **Sem senha de download:**
-- Usa chave mestra do sistema (ENCRYPTION_KEY)
+- Usa chave mestra do sistema (ENCRYPTION_KEY presente no .env)
 
 **Com senha de download:**
 - Deriva chave usando PBKDF2-HMAC-SHA256

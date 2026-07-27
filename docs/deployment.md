@@ -11,7 +11,7 @@
 ### 1. Clonar Repositorio
 
 ```bash
-git clone https://github.com/diogopython/TorFiles.git
+git clone https://github.com/MrDiogoMilhomem/TorFiles.git
 cd TorFiles
 ```
 
@@ -74,7 +74,14 @@ O Docker empacota a aplicação e todas as suas dependências em um container is
 
 Certifique-se de que os arquivos `Dockerfile`, `.dockerignore` e `docker-compose.yml` estão na raiz do projeto (ao lado de `app.py`).
 
-### 1. Gerar as Chaves e o .env basico com as chaves
+### 1. Clonar Repositorio
+
+```bash
+git clone https://github.com/MrDiogoMilhomem/TorFiles.git
+cd TorFiles
+```
+
+### 2. Gerar as Chaves e o .env basico com as chaves
 
 Antes de qualquer coisa, gere o .env com as chaves usando o comando:
 
@@ -82,7 +89,7 @@ Antes de qualquer coisa, gere o .env com as chaves usando o comando:
 python3 GenBaseDockerEnv.py .env
 ```
 
-### 2. Criar o arquivo .env
+### 3. Criar o arquivo .env
 
 Edite o arquivo `.env` gerado na raiz do projeto com as variáveis de ambiente, nele vai aparecer:
 
@@ -103,7 +110,7 @@ Coloque senhas **FORTES** para o mariadb e para o postgresql
 
 > As URLs dos bancos (`MARIADB_URL` e `POSTGRES_URL`) são montadas automaticamente pelo `docker-compose.yml` usando os serviços `mariadb` e `postgres` como hostname — não é necessário defini-las no `.env` ao usar o Compose.
 
-### 3. Build da imagem
+### 4. Build da imagem
 
 Constrói a imagem Docker da aplicação a partir do `Dockerfile`:
 
@@ -119,7 +126,7 @@ Para forçar rebuild do zero (sem cache):
 docker build --no-cache -t torfiles:latest .
 ```
 
-### 4. Subir com Docker Compose
+### 5. Subir com Docker Compose
 
 O Compose sobe a aplicação junto com os bancos MariaDB e PostgreSQL, já configurados e conectados entre si:
 
@@ -143,7 +150,7 @@ docker compose down
 
 > Os dados dos bancos ficam em volumes Docker (`mariadb_data` e `postgres_data`) e **persistem** entre reinicializações. Para apagar os dados junto com os containers, use `docker compose down -v`.
 
-### 5. Verificar se está rodando
+### 6. Verificar se está rodando
 
 ```bash
 docker compose ps
@@ -322,14 +329,49 @@ certbot --nginx -d TorFiles.example.com
 
 ## Tor Hidden Service
 
-### torrc
+### 1. Instale o serviço Tor
 
+Em sistemas **Debian/Ubuntu** e seus derivados
+```bash
+sudo apt install -y tor
+``` 
+
+Em sistemas **RHEL/Fedora** e seus derivados
+```bash
+sudo dnf install -y tor
 ```
+
+### 2. Iniciar o serviço Tor pelo systemctl
+
+```bash
+sudo systemctl enable tor
+sudo systemctl start tor
+```
+
+(Confirmar se o serviço Tor esta rodando)
+```bash
+sudo systemctl status tor
+```
+
+### 3. Editar o arquivo de configuraçoes do Tor /etc/tor/torrc
+```bash
+nano /etc/tor/torrc
+```
+
+No final do arquivo adicione isso
+
+```bash
 HiddenServiceDir /var/lib/tor/TorFiles/
 HiddenServicePort 80 127.0.0.1:8000
 ```
+(Atençao, troque a porta 8000 pela real porta que seu servidor **TorFIles** esta rodando.)
 
-### Obter Endereco .onion
+Reinicie o serviço Tor para aplicar as mudanças
+```bash
+sudo systemctl restart tor
+```
+
+### 4. Obter Endereco .onion
 
 ```bash
 cat /var/lib/tor/TorFiles/hostname
@@ -355,3 +397,9 @@ pg_dump -U user TorFiles > backup.sql
 mysql -u user -p TorFiles < backup.sql
 psql -U user TorFiles < backup.sql
 ```
+
+### License
+
+> Este projeto está licenciado sob a GNU License v2.0 (GPL-2.0). Consulte o arquivo LICENSE para obter detalhes.
+
+[![License: GPL v2](https://img.shields.io/badge/License-GPL_v2-blue.svg)](https://www.gnu.org/licenses/old-licenses/gpl-2.0.en.html)
