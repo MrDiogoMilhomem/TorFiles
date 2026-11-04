@@ -9,7 +9,7 @@ ENCRYPTION_KEY = base64.b64encode(secrets.token_bytes(32)).decode()
 if len(argv) > 1:
     nome_arquivo = argv[1]
 else:
-    nome_arquivo = ".env.example"
+    nome_arquivo = ".env"
 
 env = f"""# Configuração dos bancos de dados
 MARIADB_URL=mysql://user:pass@host:3306/torfiles

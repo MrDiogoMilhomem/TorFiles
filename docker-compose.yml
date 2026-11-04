@@ -1,6 +1,6 @@
 # =============================================================================
-# TorFiles — docker-compose.yml (referência / desenvolvimento)
-# ⚠️  Não use as credenciais de exemplo em produção!
+# TorFiles -- docker-compose.yml
+# Use variaveis do .env para credenciais (geradas pelo install.run)
 # =============================================================================
 
 services:
