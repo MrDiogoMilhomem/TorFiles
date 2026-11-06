@@ -6,31 +6,108 @@
 
 set -euo pipefail
 
-# Cores para output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-CYAN='\033[0;36m'
-NC='\033[0m' # No Color
+# Cores para output (escape real para funcionar com echo -e e printf)
+ESC=$'\033'
+RED="${ESC}[0;31m"
+GREEN="${ESC}[0;32m"
+YELLOW="${ESC}[1;33m"
+BLUE="${ESC}[0;34m"
+CYAN="${ESC}[0;36m"
+PURPLE="${ESC}[0;35m"
+BOLD="${ESC}[1m"
+DIM="${ESC}[2m"
+NC="${ESC}[0m" # No Color
 
-# Funções de log
-log_info() { echo -e "${BLUE}[INFO]${NC} $*"; }
-log_ok() { echo -e "${GREEN}[OK]${NC} $*"; }
-log_warn() { echo -e "${YELLOW}[AVISO]${NC} $*"; }
-log_err() { echo -e "${RED}[ERRO]${NC} $*"; }
-log_step() { echo -e "\n${CYAN}==== $* ====${NC}\n"; }
+# Funções de log (vão para stderr para não poluir capturas de saída)
+log_info() { echo -e "${BLUE}[INFO]${NC} $*" >&2; }
+log_ok() { echo -e "${GREEN}[OK]${NC} $*" >&2; }
+log_warn() { echo -e "${YELLOW}[AVISO]${NC} $*" >&2; }
+log_err() { echo -e "${RED}[ERRO]${NC} $*" >&2; }
+log_step() { echo -e "\n${CYAN}==== $* ====${NC}\n" >&2; }
+
+# ---------------------------------------------------------------------------
+# Banner com degradê (truecolor ANSI 24-bit)
+# ---------------------------------------------------------------------------
+
+# Quantizacao do degradê (numero de tons usados)
+GRADIENT_STEPS=48
+
+# Interpola entre duas cores RGB -> sequencia ANSI
+ramp_color() {
+    local pct="$1" r1="$2" g1="$3" b1="$4" r2="$5" g2="$6" b2="$7"
+    local r g b
+    r=$(( r1 + (r2 - r1) * pct / 100 ))
+    g=$(( g1 + (g2 - g1) * pct / 100 ))
+    b=$(( b1 + (b2 - b1) * pct / 100 ))
+    printf '%s[38;2;%d;%d;%dm' "${ESC}" "${r}" "${g}" "${b}"
+}
+
+# Define a cor (pct 0..100) na rampa: ciano -> azul -> roxo Tor
+gradient_color() {
+    local pct="$1"
+    if [[ ${pct} -le 50 ]]; then
+        ramp_color $(( pct * 2 )) 6 182 212 59 130 246
+    else
+        ramp_color $(( (pct - 50) * 2 )) 59 130 246 125 70 152
+    fi
+}
+
+# Imprime texto com degradê contínuo por caractere
+render_gradient() {
+    local text="$1"
+    local total=0
+    local line
+    local idx=0
+    local j ch color out prev_color=""
+
+    while IFS= read -r line; do
+        total=$(( total + ${#line} + 1 ))
+    done <<< "${text}"
+
+    while IFS= read -r line; do
+        out=""
+        for (( j = 0; j < ${#line}; j++ )); do
+            ch="${line:j:1}"
+            if [[ -n "${ch// /}" ]]; then
+                # Quantiza a posicao em GRADIENT_STEPS tons p/ reduzir escapes repetidos
+                local step=$(( idx * GRADIENT_STEPS / (total > 0 ? total : 1) ))
+                color=$(gradient_color $(( step * 100 / GRADIENT_STEPS )))
+                if [[ "${color}" != "${prev_color}" ]]; then
+                    out+="${color}"
+                    prev_color="${color}"
+                fi
+                out+="${ch}"
+            else
+                out+="${ch}"
+            fi
+            idx=$(( idx + 1 ))
+        done
+        # NC reinicia tudo; BOLD e reaplicado para manter o destaque
+        printf '%s%s%s\n' "${out}" "${NC}" "${BOLD}"
+    done <<< "${text}"
+}
 
 # Banner
 show_banner() {
-    echo 'EOF'
-╔══════════════════════════════════════════════════════════════════════════════╗
-║                    TorFiles - Instalação Universal                           ║
-║           Sistema Seguro de Compartilhamento de Arquivos                     ║
-║                                                                              ║
-║   Compatível: Debian/Ubuntu, RHEL/Fedora, Arch/Manjaro/CachyOS, openSUSE     ║
-╚══════════════════════════════════════════════════════════════════════════════╝
-EOF
+    local art
+    art=$(cat <<'BANNER'
+█████  ███  ████  █████ ███ █     █████  ████   
+ ░█░░░█ ░░█ █░░░█ █░░░░░ █░░█░    █░░░░░█ ░░░░  
+  █░░░█░ ░█░████░░████░░░█░░█░░   ████░░░███░░░ 
+  █░░ █░░ █░█░░█░ █░░░░  █░░█░░   █░░░░   ░░█   
+  █░░  ███ ░█░░░█░█░░░░░███░█████ █████░████░░  
+   ░░   ░░░ ░░░  ░ ░░    ░░░ ░░░░░ ░░░░░ ░░░░ ░ 
+    ░    ░░░  ░   ░ ░     ░░░ ░░░░░ ░░░░░ ░░░░  
+BANNER
+)
+
+    printf '%s' "${BOLD}"
+    render_gradient "${art}"
+
+    echo
+    printf '     %s%s%s\n' "${BOLD}${CYAN}" "TorFiles - Instalação Universal via Docker" "${NC}"
+    printf '   %sSistema Seguro de Compartilhamento de Arquivos%s\n' "${DIM}" "${NC}"
+    echo
 }
 
 # Verifica se é root
@@ -46,10 +123,12 @@ detect_distro() {
     if [[ -f /etc/os-release ]]; then
         # shellcheck source=/dev/null
         . /etc/os-release
-        DISTRO_ID="${ID,,}"
-        DISTRO_LIKE="${ID_LIKE,,}"
-        DISTRO_VERSION="${VERSION_ID}"
-        DISTRO_NAME="${PRETTY_NAME}"
+        # Nem todo os-release define todas as variáveis (ex: Arch não define ID_LIKE).
+        # O script roda com 'set -u', então usamos defaults vazios para evitar abortar.
+        DISTRO_ID="${ID:-unknown}"
+        DISTRO_LIKE="${ID_LIKE:-}"
+        DISTRO_VERSION="${VERSION_ID:-}"
+        DISTRO_NAME="${PRETTY_NAME:-${DISTRO_ID}}"
     else
         log_err "Não foi possível detectar a distribuição (/etc/os-release não encontrado)"
         exit 1
@@ -83,6 +162,53 @@ detect_distro() {
             INSTALL_CMD="zypper install -y -q"
             UPDATE_CMD="zypper refresh -q"
             DOCKER_PKGS=("docker" "docker-compose")
+            ;;
+        *)
+            # Fallback: tenta classificar pelo ID_LIKE (ex: "ubuntu" deriving de "debian")
+            local like
+            for like in ${DISTRO_LIKE//,/ }; do
+                case "${like}" in
+                    debian|ubuntu)
+                        PKG_MGR="apt"
+                        DISTRO_FAMILY="debian"
+                        INSTALL_CMD="apt-get install -y -qq"
+                        UPDATE_CMD="apt-get update -qq"
+                        DOCKER_PKGS=("docker-ce" "docker-ce-cli" "containerd.io" "docker-buildx-plugin" "docker-compose-plugin")
+                        break
+                        ;;
+                    fedora|rhel|centos)
+                        PKG_MGR="dnf"
+                        DISTRO_FAMILY="rhel"
+                        INSTALL_CMD="dnf install -y -q"
+                        UPDATE_CMD="dnf check-update -q || true"
+                        DOCKER_PKGS=("docker-ce" "docker-ce-cli" "containerd.io" "docker-buildx-plugin" "docker-compose-plugin")
+                        break
+                        ;;
+                    arch|manjaro)
+                        PKG_MGR="pacman"
+                        DISTRO_FAMILY="arch"
+                        INSTALL_CMD="pacman -S --noconfirm --needed"
+                        UPDATE_CMD="pacman -Sy --noconfirm"
+                        DOCKER_PKGS=("docker" "docker-compose")
+                        break
+                        ;;
+                    opensuse|suse)
+                        PKG_MGR="zypper"
+                        DISTRO_FAMILY="suse"
+                        INSTALL_CMD="zypper install -y -q"
+                        UPDATE_CMD="zypper refresh -q"
+                        DOCKER_PKGS=("docker" "docker-compose")
+                        break
+                        ;;
+                esac
+            done
+
+            if [[ -z "${PKG_MGR:-}" ]]; then
+                log_err "Distribuição não suportada: ${DISTRO_NAME} (ID=${DISTRO_ID})"
+                log_err "ID_LIKE: ${DISTRO_LIKE:-<vazio>}"
+                log_err "Distribuições suportadas: Debian/Ubuntu, RHEL/Fedora, Arch e openSUSE"
+                exit 1
+            fi
             ;;
     esac
 
@@ -207,7 +333,12 @@ ensure_docker_compose() {
 # Gera senha aleatória segura
 gen_password() {
     # 32 caracteres: alfanumérico + símbolos seguros
-    tr -dc 'A-Za-z0-9!@#$%^&*()_+-=' </dev/urandom | head -c 32
+    # NOTA: 'head -c 32' fecha o pipe antes do 'tr' terminar, o que gera SIGPIPE (exit 141).
+    # Com 'set -e' + 'pipefail' isso abortava o instalador silenciosamente.
+    # Solução: gera um bloco grande de bytes e filtra com 'tr' (sem pipe para 'head').
+    local raw
+    raw=$(head -c 512 /dev/urandom | LC_ALL=C tr -dc 'A-Za-z0-9!@#$%^&*()_+-=')
+    printf '%s' "${raw:0:32}"
 }
 
 # Gera chave de criptografia base64 (32 bytes = 44 chars base64)
@@ -410,24 +541,167 @@ show_summary() {
 EOF
 }
 
+# ---------------------------------------------------------------------------
+# Resolução do diretório do projeto / clone automático
+# ---------------------------------------------------------------------------
+
+# Repositório oficial do TorFiles
+REPO_URL="https://github.com/MrDiogoMilhomem/TorFiles.git"
+REPO_BRANCH="main"
+
+# Arquivos essenciais para o build
+REQUIRED_FILES=("Dockerfile" "docker-compose.yml" "app.py")
+
+# Verifica se um diretório contém os arquivos essenciais do projeto
+has_project_files() {
+    local dir="$1"
+    local f
+    for f in "${REQUIRED_FILES[@]}"; do
+        if [[ ! -f "${dir}/${f}" ]]; then
+            return 1
+        fi
+    done
+    return 0
+}
+
+# Retorna o diretório de trabalho atual, ou "/" se não for determinável
+current_dir() {
+    pwd 2>/dev/null || echo "/"
+}
+
+# Instala o git se necessário (necessário para clonar o repositório)
+ensure_git() {
+    if cmd_exists git; then
+        return 0
+    fi
+
+    log_info "Git não encontrado, instalando..."
+    case "${DISTRO_FAMILY}" in
+        debian) apt-get install -y -qq git ;;
+        rhel)   dnf install -y -q git ;;
+        arch)   pacman -S --noconfirm --needed git ;;
+        suse)   zypper install -y -q git ;;
+        *)      log_err "Não foi possível instalar o git automaticamente"; exit 1 ;;
+    esac
+
+    if ! cmd_exists git; then
+        log_err "Instalação do git falhou"
+        exit 1
+    fi
+}
+
+# Clona (ou atualiza) o repositório do TorFiles no destino
+clone_repo() {
+    local dest="$1"
+
+    ensure_git
+
+    if [[ -d "${dest}/.git" ]]; then
+        log_info "Repositório já existe em ${dest}, atualizando..."
+        git -C "${dest}" fetch --depth 1 origin "${REPO_BRANCH}" 2>/dev/null \
+            || git -C "${dest}" fetch origin
+        git -C "${dest}" checkout "${REPO_BRANCH}" 2>/dev/null || true
+        git -C "${dest}" pull --ff-only 2>/dev/null || true
+        log_ok "Repositório atualizado"
+        return 0
+    fi
+
+    log_info "Baixando o TorFiles de ${REPO_URL}..."
+    rm -rf "${dest}"
+    mkdir -p "$(dirname "${dest}")"
+
+    # O output do git vai para stderr para não contaminar a captura do diretório
+    if ! git clone --depth 1 --branch "${REPO_BRANCH}" "${REPO_URL}" "${dest}" >&2; then
+        log_err "Falha ao clonar o repositório"
+        log_err "Verifique a conexão com a internet ou clone manualmente:"
+        log_err "  git clone ${REPO_URL} ${dest}"
+        exit 1
+    fi
+
+    log_ok "Repositório baixado para ${dest}"
+}
+
+# Descobre/garante o diretório do projeto com os arquivos necessários.
+# Se o script foi executado via "curl ... | sudo bash", não há BASH_SOURCE,
+# então procuramos os arquivos no diretório atual ou clonamos o repositório.
+resolve_project_dir() {
+    local script_dir=""
+    local candidate=""
+
+    # 1) Script executado como arquivo (./install.run ou bash install.run)
+    if [[ -n "${BASH_SOURCE[0]:-}" ]] && [[ "${BASH_SOURCE[0]}" != "-" ]]; then
+        script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+        if has_project_files "${script_dir}"; then
+            log_ok "Projeto encontrado em ${script_dir}"
+            echo "${script_dir}"
+            return 0
+        fi
+    fi
+
+    # 2) Diretório atual do usuário (comando pipe: curl ... | sudo bash)
+    candidate="$(current_dir)"
+    if has_project_files "${candidate}"; then
+        log_ok "Projeto encontrado em ${candidate}"
+        echo "${candidate}"
+        return 0
+    fi
+
+    # 3) Locais comuns
+    for candidate in /opt/torfiles /opt/TorFiles "${HOME:-/root}/TorFiles" "${HOME:-/root}/torfiles"; do
+        if has_project_files "${candidate}"; then
+            log_ok "Projeto encontrado em ${candidate}"
+            echo "${candidate}"
+            return 0
+        fi
+    done
+
+    # 4) Não achou: clona o repositório
+    local target="${TORFILES_DIR:-/opt/torfiles}"
+    log_warn "Arquivos do projeto não encontrados neste diretório."
+    log_info "Baixando o projeto para ${target}..."
+    clone_repo "${target}"
+
+    if ! has_project_files "${target}"; then
+        log_err "Download concluído mas os arquivos esperados não estão em ${target}"
+        log_err "Esperados: ${REQUIRED_FILES[*]}"
+        exit 1
+    fi
+
+    echo "${target}"
+}
+
+# Detecta se o instalador foi baixado como HTML em vez de bash.
+# IMPORTANTE: o bash executa o script piped linha a linha, entao uma pagina HTML
+# cause "erro de sintaxe" na linha 1 e o script morre ANTES de chegar aqui.
+# Por isso esta funcao so checa o cabecalho do proprio arquivo quando executado
+# como arquivo; no modo pipe, a protecao real e o clone automatico do projeto.
+check_not_html() {
+    local self="${BASH_SOURCE[0]:-}"
+    local head_line=""
+
+    [[ -z "${self}" || "${self}" == "-" ]] && return 0
+    [[ -f "${self}" ]] || return 0
+
+    head_line="$(head -n 1 "${self}" 2>/dev/null || true)"
+
+    if [[ "${head_line}" == *"<!DOCTYPE html"* ]] || [[ "${head_line}" == *"<html"* ]]; then
+        log_err "O arquivo recebido é uma página HTML, não o instalador bash."
+        log_err "Use a URL 'raw' do GitHub (sem /blob/):"
+        log_err "  curl -fsSL https://raw.githubusercontent.com/MrDiogoMilhomem/TorFiles/main/install.run | sudo bash"
+        exit 1
+    fi
+}
+
 # Função principal
 main() {
     show_banner
+    check_not_html
     check_root
     detect_distro
 
-    sleep 100
-
-    # Diretório do projeto (onde está o script)
+    # Diretório do projeto (com download automático se necessário)
     local script_dir
-    script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-
-    # Verifica se estamos no diretório do projeto (tem Dockerfile, docker-compose.yml)
-    if [[ ! -f "${script_dir}/Dockerfile" ]] || [[ ! -f "${script_dir}/docker-compose.yml" ]]; then
-        log_err "Execute este script a partir do diretório raiz do projeto TorFiles"
-        log_err "Arquivos necessários: Dockerfile, docker-compose.yml"
-        exit 1
-    fi
+    script_dir="$(resolve_project_dir)"
 
     log_step "Iniciando instalação do TorFiles"
 
