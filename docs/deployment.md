@@ -1,69 +1,106 @@
 # Deployment
 
-## Requisitos
+O TorFiles pode ser instalado de forma **automática** (recomendado) ou **manual**.
 
-- Python 3.9+
-- MariaDB 10.5+
-- PostgreSQL 13+
+| Método | Descrição |
+|---|---|
+| **[Automático](#deploy-automático---installrun)** | `install.run` instala Docker, gera as chaves, sobe os containers |
+| **[Manual — Docker](#deploy-manual---docker)** | Build e subida manual via `docker compose` |
+| **[Manual — Python](#deploy-manual---pythonvenv)** | Ambiente virtual, sem Docker |
 
-## Deploy
+---
 
-### 1. Clonar Repositorio
+## Deploy Automático — `install.run`
+
+O `install.run` faz tudo sozinho: detecta a distribuição, instala o Docker, gera as
+chaves seguras, constrói a imagem e sobe a aplicação com os bancos de dados.
+
+### Requisitos
+
+- Linux (Debian/Ubuntu, RHEL/Fedora, Arch e derivados, openSUSE)
+- `curl` e `git`
+- Acesso à internet
+
+### Método 1 — Comando único (recomendado)
+
+Roda o instalador direto do GitHub. Ele baixa os arquivos do projeto automaticamente:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/MrDiogoMilhomem/TorFiles/main/install.run | sudo bash
+```
+
+### Método 2 — Clone + execução local
 
 ```bash
 git clone https://github.com/MrDiogoMilhomem/TorFiles.git
 cd TorFiles
+sudo ./install.run
 ```
 
-### 2. Criar Ambiente Virtual
+### O que o instalador faz
+
+1. Detecta a distribuição e o gerenciador de pacotes (`apt`, `dnf`, `pacman` ou `zypper`)
+2. Instala o Docker e o Docker Compose, se necessário
+3. **Baixa o projeto automaticamente** caso os arquivos não estejam no diretório atual
+   (clone em `/opt/torfiles`, ou em `$TORFILES_DIR` se definido)
+4. Gera o `.env` com chaves e senhas aleatórias seguras (permissões `600`)
+5. Constrói a imagem `torfiles:latest` e sobe os containers
+6. Aguarda o health check dos bancos e verifica se a aplicação responde
+
+### Opções
 
 ```bash
-python3 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
+# Instalar em outro diretório (padrão: /opt/torfiles)
+sudo TORFILES_DIR=/opt/TorFiles ./install.run
 ```
 
-### 3. Criar .env
+### Após a instalação
+
+A aplicação fica disponível em:
+
+- **Aplicação:** http://localhost:8000
+- **Documentação:** http://localhost:8000/docs (se `DOCS_ENABLED=true`)
+
+### Comandos úteis
+
 ```bash
-python3 GenBaseEnv.py .env
+cd /opt/torfiles
+
+docker compose logs -f          # Ver logs
+docker compose logs -f app      # Ver logs da aplicação
+docker compose down             # Parar tudo
+docker compose down -v          # Parar + remover volumes (⚠️ APAGA DADOS!)
+docker compose restart          # Reiniciar
 ```
 
-### 4. Configurar Variaveis
+### Atualizar após mudanças no código
 
 ```bash
-MARIADB_URL=mysql://user:password@host:3306/torfiles
-POSTGRES_URL=postgresql://user:password@host:5432/torfiles
-
-SECRET_KEY=XXXXXXXXXXXXXXXXXXXXXXXXX
-ENCRYPTION_KEY=XXXXXXXXXXXXXXXXXXXXXXXXX
-
-# habilitar a documentaçao do app
-DOCS_ENABLED=true
-
-# Configuraçoes do desemvolvimento local
-LOCALDEV=true
-LOCALDEV_DEBUG=true
-LOCALDEV_HOST='127.0.0.1'
-LOCALDEV_PORT=5000
+cd /opt/torfiles
+git pull
+docker compose up -d --build
 ```
 
-### 5. Executar
+### ⚠️ Backup obrigatório
 
-**Desenvolvimento:**
+O instalador gera o arquivo `.env` com a `ENCRYPTION_KEY` e as senhas dos bancos:
+
 ```bash
-python app.py
+sudo cp /opt/torfiles/.env /caminho/seguro/.env
 ```
 
-**Produçao**
-```bash
-gunicorn -w <workers> -b 127.0.0.1:8000 app:app 
-```
+> **A perda da `ENCRYPTION_KEY` = perda total e irreversível dos arquivos criptografados.**
 
 ---
 
-## Deploy com Docker
+## Deploy Manual — Docker
 
-O Docker empacota a aplicação e todas as suas dependências em um container isolado, eliminando a necessidade de configurar Python, libs do sistema ou o Gunicorn manualmente no servidor.
+> Método **manual**: você executa cada passo. Use quando já tiver Docker instalado e
+> quiser controlar cada etapa.
+
+O Docker empacota a aplicação e todas as suas dependências em um container isolado,
+eliminando a necessidade de configurar Python, libs do sistema ou o Gunicorn manualmente
+no servidor.
 
 ### Requisitos
 
@@ -72,7 +109,8 @@ O Docker empacota a aplicação e todas as suas dependências em um container is
 
 ### Arquivos necessários
 
-Certifique-se de que os arquivos `Dockerfile`, `.dockerignore` e `docker-compose.yml` estão na raiz do projeto (ao lado de `app.py`).
+Certifique-se de que os arquivos `Dockerfile`, `.dockerignore` e `docker-compose.yml` estão
+na raiz do projeto (ao lado de `app.py`).
 
 ### 1. Clonar Repositorio
 
@@ -86,17 +124,18 @@ cd TorFiles
 Antes de qualquer coisa, gere o .env com as chaves usando o comando:
 
 ```python
-python3 GenBaseDockerEnv.py .env
+python3 scripts/GenBaseDockerEnv.py .env
 ```
 
 ### 3. Criar o arquivo .env
 
-Edite o arquivo `.env` gerado na raiz do projeto com as variáveis de ambiente, nele vai aparecer:
+Edite o arquivo `.env` gerado na raiz do projeto com as variáveis de ambiente, nele vai
+aparecer:
 
 ```bash
 # Segurança
-SECRET_KEY=XXXXXXXXXXXXXX
-ENCRYPTION_KEY=XXXXXXXXXXXXXX
+SECRET_KEY=XXX... (Gerado automaticamente)
+ENCRYPTION_KEY=XXX... (Gerado automaticamente)
 
 # Senhas dos bancos (escolha senhas fortes)
 MARIADB_ROOT_PASSWORD=senha-root-forte
@@ -106,9 +145,18 @@ POSTGRES_PASSWORD=senha-torfiles-forte
 # Opcional
 DOCS_ENABLED=true
 ```
+
+Caso queira gerar as chaves por conta propria, é recomendavel que use o comando:
+
+```bash
+openssl rand -base64 32
+```
+
 Coloque senhas **FORTES** para o mariadb e para o postgresql
 
-> As URLs dos bancos (`MARIADB_URL` e `POSTGRES_URL`) são montadas automaticamente pelo `docker-compose.yml` usando os serviços `mariadb` e `postgres` como hostname — não é necessário defini-las no `.env` ao usar o Compose.
+> As URLs dos bancos (`MARIADB_URL` e `POSTGRES_URL`) são montadas automaticamente pelo
+> `docker-compose.yml` usando os serviços `mariadb` e `postgres` como hostname — não é
+> necessário defini-las no `.env` ao usar o Compose.
 
 ### 4. Build da imagem
 
@@ -118,7 +166,8 @@ Constrói a imagem Docker da aplicação a partir do `Dockerfile`:
 docker build -t torfiles:latest .
 ```
 
-O build usa múltiplos estágios: o primeiro estágio compila as dependências Python, o segundo gera a imagem final enxuta sem ferramentas de compilação.
+O build usa múltiplos estágios: o primeiro estágio compila as dependências Python, o
+segundo gera a imagem final enxuta sem ferramentas de compilação.
 
 Para forçar rebuild do zero (sem cache):
 
@@ -128,13 +177,15 @@ docker build --no-cache -t torfiles:latest .
 
 ### 5. Subir com Docker Compose
 
-O Compose sobe a aplicação junto com os bancos MariaDB e PostgreSQL, já configurados e conectados entre si:
+O Compose sobe a aplicação junto com os bancos MariaDB e PostgreSQL, já configurados e
+conectados entre si:
 
 ```bash
 docker compose up -d
 ```
 
-A flag `-d` roda os containers em segundo plano. As tabelas dos bancos são criadas automaticamente na primeira execução.
+A flag `-d` roda os containers em segundo plano. As tabelas dos bancos são criadas
+automaticamente na primeira execução.
 
 Para acompanhar os logs em tempo real:
 
@@ -148,7 +199,9 @@ Para parar tudo:
 docker compose down
 ```
 
-> Os dados dos bancos ficam em volumes Docker (`mariadb_data` e `postgres_data`) e **persistem** entre reinicializações. Para apagar os dados junto com os containers, use `docker compose down -v`.
+> Os dados dos bancos ficam em volumes Docker (`mariadb_data` e `postgres_data`) e
+> **persistem** entre reinicializações. Para apagar os dados junto com os containers, use
+> `docker compose down -v`.
 
 ### 6. Verificar se está rodando
 
@@ -170,7 +223,8 @@ docker compose up -d
 
 ### Workers do Gunicorn no Docker
 
-O `Dockerfile` já define 2 workers por padrão. Para ajustar, sobrescreva o `CMD` no `docker-compose.yml`:
+O `Dockerfile` já define 2 workers por padrão. Para ajustar, sobrescreva o `CMD` no
+`docker-compose.yml`:
 
 ```yaml
 services:
@@ -188,6 +242,78 @@ services:
 ```
 
 Aplique a mesma regra `(2 × núcleos) + 1` descrita na seção de Workers abaixo.
+
+---
+
+## Deploy Manual — Python/Venv
+
+> Método **manual**: sem Docker, com ambiente virtual e Gunicorn.
+
+### Requisitos
+
+- Python 3.9+
+- MariaDB 10.5+
+- PostgreSQL 13+
+
+### 1. Clonar Repositorio
+
+```bash
+git clone https://github.com/MrDiogoMilhomem/TorFiles.git
+cd TorFiles
+```
+
+### 2. Criar Ambiente Virtual
+
+```bash
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+```
+
+### 3. Criar .env
+
+```bash
+python3 scripts/GenBaseEnv.py .env
+```
+
+### 4. Configurar Variaveis
+
+```bash
+MARIADB_URL=mysql://user:password@host:3306/torfiles
+POSTGRES_URL=postgresql://user:password@host:5432/torfiles
+
+SECRET_KEY=XXX... (Gerado automaticamente)
+ENCRYPTION_KEY=XXX... (Gerado automaticamente)
+
+# habilitar a documentaçao do app
+DOCS_ENABLED=true
+
+# Configuracoes do desemvolvimento local
+LOCALDEV=true
+LOCALDEV_DEBUG=true
+LOCALDEV_HOST='127.0.0.1'
+LOCALDEV_PORT=5000
+```
+
+Caso queira gerar as chaves por conta propria, é recomendavel que use o comando:
+
+```bash
+openssl rand -base64 32
+```
+
+### 5. Executar
+
+**Desenvolvimento:**
+
+```bash
+python app.py
+```
+
+**Produçao**
+
+```bash
+gunicorn -w <workers> -b 127.0.0.1:8000 app:app
+```
 
 ---
 
@@ -223,7 +349,10 @@ Exemplos:
 | 6 | 13 |
 | 8 | 17 |
 | 16 | 33 |
-(recomentaçao: nao rode em capacidade total de workers suportados pelo seu processador, para manter a estabilidade do sistema e outros processos importantes como os bancos de dados)
+
+> (recomentaçao: nao rode em capacidade total de workers suportados pelo seu processador,
+> para manter a estabilidade do sistema e outros processos importantes como os bancos de dados)
+
 ---
 
 ## Como descobrir quantos núcleos sua máquina possui
@@ -271,7 +400,9 @@ sysctl -n hw.ncpu
 ```bash
 gunicorn -w $((2 * $(nproc) + 1)) -b 127.0.0.1:8000 app:app
 ```
-(nao recomendado pois usa todos os workers que sua cpu suporta)
+
+> (nao recomendado pois usa todos os workers que sua cpu suporta)
+
 ---
 
 ## Exemplo simples
@@ -279,7 +410,10 @@ gunicorn -w $((2 * $(nproc) + 1)) -b 127.0.0.1:8000 app:app
 ```bash
 gunicorn -w 4 -b 127.0.0.1:8000 app:app
 ```
-(recomendado, funciona bem na maioria dos casos)
+
+> (recomendado, funciona bem na maioria dos casos)
+
+---
 
 ## Configuracao de Banco de Dados
 
@@ -301,15 +435,17 @@ GRANT ALL PRIVILEGES ON DATABASE TorFiles TO TorFiles;
 
 As tabelas sao criadas automaticamente na primeira execucao.
 
+---
+
 ## Proxy Reverso com Nginx
 
 ```nginx
 server {
     listen 80;
     server_name TorFiles.example.com;
-    
+
     client_max_body_size 100M;
-    
+
     location / {
         proxy_pass http://127.0.0.1:8000;
         proxy_set_header Host $host;
@@ -332,11 +468,13 @@ certbot --nginx -d TorFiles.example.com
 ### 1. Instale o serviço Tor
 
 Em sistemas **Debian/Ubuntu** e seus derivados
+
 ```bash
 sudo apt install -y tor
-``` 
+```
 
 Em sistemas **RHEL/Fedora** e seus derivados
+
 ```bash
 sudo dnf install -y tor
 ```
@@ -349,11 +487,13 @@ sudo systemctl start tor
 ```
 
 (Confirmar se o serviço Tor esta rodando)
+
 ```bash
 sudo systemctl status tor
 ```
 
 ### 3. Editar o arquivo de configuraçoes do Tor /etc/tor/torrc
+
 ```bash
 nano /etc/tor/torrc
 ```
@@ -364,9 +504,11 @@ No final do arquivo adicione isso
 HiddenServiceDir /var/lib/tor/TorFiles/
 HiddenServicePort 80 127.0.0.1:8000
 ```
-(Atençao, troque a porta 8000 pela real porta que seu servidor **TorFIles** esta rodando.)
+
+> (Atençao, troque a porta 8000 pela real porta que seu servidor **TorFIles** esta rodando.)
 
 Reinicie o serviço Tor para aplicar as mudanças
+
 ```bash
 sudo systemctl restart tor
 ```
@@ -395,11 +537,12 @@ pg_dump -U user TorFiles > backup.sql
 
 ```bash
 mysql -u user -p TorFiles < backup.sql
-psql -U user TorFiles < backup.sql
+psql -u user TorFiles < backup.sql
 ```
 
 ### License
 
-> Este projeto está licenciado sob a GNU License v2.0 (GPL-2.0). Consulte o arquivo LICENSE para obter detalhes.
+> Este projeto está licenciado sob a GNU License v2.0 (GPL-2.0). Consulte o arquivo LICENSE
+> para obter detalhes.
 
 [![License: GPL v2](https://img.shields.io/badge/License-GPL_v2-blue.svg)](https://www.gnu.org/licenses/old-licenses/gpl-2.0.en.html)
